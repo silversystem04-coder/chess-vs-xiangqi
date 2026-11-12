@@ -4,7 +4,10 @@
 棋盘采用国际象棋的深浅格美术风格，中间那条河叫**乌拉尔河**。
 两军各子严格按自己棋种的走法行动，**吃掉对方的「帅 / 王」即获胜**。
 
-打开 `index.html` 即可玩（需要同目录的 `engine.js`）。
+**在线直接玩**：<https://silversystem04-coder.github.io/chess-vs-xiangqi/>
+（带说明文档的版本：<https://silversystem04-coder.github.io/chess-vs-xiangqi/chess-vs-xiangqi-doc.html>）
+
+本地玩：打开 `index.html` 即可（需要同目录的 `engine.js`）。
 **想直接下载单个文件玩**：用 `chess-vs-xiangqi.html` —— 它把引擎内联进去了，无任何外部依赖，
 双击就能离线运行，也可以拷到手机/别的电脑上。
 
