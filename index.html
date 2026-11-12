@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>中西对弈 · 国际象棋 vs 中国象棋</title>
+<style>
+  :root{
+    --bg:#0d1014; --panel:#171c23; --panel2:#1e242d; --line:#2c343f;
+    --txt:#e8eef6; --dim:#93a1b1; --gold:#d9b45b; --cn:#d9524f; --intl:#7fb2e5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 700px at 20% -10%, #1b2430 0%, var(--bg) 60%);
+    color:var(--txt); min-height:100vh;
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;gap:20px;align-items:flex-start;justify-content:center;padding:20px 20px 34px}
+  .board-wrap{position:relative;flex:0 0 auto;border-radius:16px;
+    box-shadow:0 26px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(217,180,91,.18)}
+  canvas{display:block;border-radius:16px;cursor:pointer}
+  .banner{position:absolute;inset:0;display:none;place-items:center;border-radius:16px;
+    background:rgba(9,11,15,.66);backdrop-filter:blur(4px);text-align:center;padding:20px}
+  .banner.show{display:grid}
+  .banner-card{background:linear-gradient(180deg,#1d242e,#151a21);border:1px solid rgba(217,180,91,.35);
+    border-radius:14px;padding:22px 26px;box-shadow:0 18px 40px rgba(0,0,0,.5);min-width:210px}
+  .banner-title{font-size:26px;font-weight:700;letter-spacing:2px;margin-bottom:6px}
+  .banner-sub{font-size:13px;color:var(--dim);margin-bottom:16px}
+
+  .panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;gap:11px}
+  .card{background:linear-gradient(180deg,var(--panel),#141920);border:1px solid var(--line);
+    border-radius:13px;padding:12px 14px}
+  h1{margin:0;font-size:19px;letter-spacing:3px;font-weight:700}
+  h1 span{color:var(--gold)}
+  .sub{margin:5px 0 0;font-size:12px;color:var(--dim);letter-spacing:.4px}
+
+  .turn{display:flex;align-items:center;gap:11px}
+  .dot{width:13px;height:13px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+  .dot.cn{background:linear-gradient(160deg,#ff8f86,#c2261f)}
+  .dot.intl{background:linear-gradient(160deg,#a9d2ff,#2f6ea8)}
+  .turn-label{font-size:11px;color:var(--dim);letter-spacing:1px}
+  .turn-who{font-size:16px;font-weight:600;margin-top:2px}
+  .tag{margin-left:auto;font-size:12px;font-weight:700;color:#fff;background:#c8352f;
+    padding:4px 9px;border-radius:999px;letter-spacing:1px;animation:pulse 1s infinite}
+  .tag.hide{display:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+  .hint{font-size:12px;color:var(--dim);margin-top:9px;min-height:15px}
+
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--txt);padding:7px 11px;font-size:13px;transition:.15s}
+  button:hover{background:#27303b;border-color:#3b4756}
+  button.on{background:linear-gradient(180deg,#3a4d63,#2a3a4c);border-color:#5b7ea3;color:#fff}
+  button.flat{width:100%;justify-content:center}
+  .row{display:flex;gap:7px}
+  .row>button{flex:1;padding:8px 6px}
+  .seg-label{font-size:11px;color:var(--dim);letter-spacing:1px;margin:0 0 7px}
+
+  /* 摆棋调色板 */
+  .palette{display:flex;flex-wrap:wrap;gap:5px}
+  .palette button{
+    width:40px;height:40px;padding:0;font-size:16px;line-height:1;border-radius:9px;
+    font-family:"KaiTi","STKaiti","Songti SC",serif;font-weight:700;color:#f1e3c6;
+  }
+  .palette button.intl{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;color:#9fc4e8;font-weight:600}
+  .palette button.eraser{color:#ff9a95;font-family:"Segoe UI",sans-serif}
+  .palette button.on{
+    background:linear-gradient(180deg,#3d5169,#2b3b4d);border-color:#d9b45b;
+    box-shadow:0 0 0 1px #d9b45b inset, 0 0 12px rgba(217,180,91,.45)
+  }
+  .palette button:disabled{opacity:.4}
+
+  .caps{display:flex;flex-direction:column;gap:7px}
+  .cap-side{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--dim)}
+  .cap-side b{flex:0 0 58px;font-weight:600;font-size:12px}
+  .cap-side b.red{color:var(--cn)} .cap-side b.blue{color:var(--intl)}
+  .cap-list{flex:1;line-height:1.5;word-break:break-all;color:#cfd9e5;font-size:14px}
+  .cap-list .g{font-family:"Segoe UI Symbol","DejaVu Sans",serif;color:#bcd6f2}
+  .cap-list .c{color:#e78f8a;font-family:"KaiTi","STKaiti",serif}
+
+  .log{max-height:196px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{position:sticky;top:0;background:#151a21;color:var(--dim);font-weight:500;text-align:left;
+    padding:5px 6px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:1px}
+  td{padding:4px 6px;border-bottom:1px dashed rgba(255,255,255,.055);color:#d6dfe9;white-space:nowrap}
+  td.n{color:var(--dim);width:26px}
+  td.red{color:#e9968f} td.blue{color:#a8c9ea}
+  .log::-webkit-scrollbar{width:8px}
+  .log::-webkit-scrollbar-thumb{background:#313a45;border-radius:8px}
+
+  .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(8,10,13,.72);
+    backdrop-filter:blur(3px);z-index:20;padding:22px}
+  .modal.show{display:grid}
+  .modal-card{background:linear-gradient(180deg,#1b222b,#12171d);border:1px solid rgba(217,180,91,.3);
+    border-radius:15px;max-width:640px;width:100%;max-height:86vh;overflow:auto;padding:22px 26px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6)}
+  .modal-card h2{margin:0 0 4px;font-size:18px;letter-spacing:2px;color:var(--gold)}
+  .modal-card h3{margin:18px 0 7px;font-size:14px;color:#fff;letter-spacing:1px}
+  .modal-card p,.modal-card li{font-size:13.5px;line-height:1.75;color:#c8d3e0;margin:6px 0}
+  .modal-card ul{margin:6px 0;padding-left:20px}
+  .k{display:inline-block;min-width:20px;text-align:center;font-family:"KaiTi","STKaiti",serif;
+    color:#ffd9d6;background:rgba(200,53,47,.22);border-radius:6px;padding:1px 6px;font-weight:700}
+  .kb{display:inline-block;min-width:20px;text-align:center;font-family:"Segoe UI Symbol",serif;
+    color:#dbeaff;background:rgba(47,110,168,.24);border-radius:6px;padding:1px 6px;font-weight:700}
+  .close{margin-top:20px;width:100%;padding:10px;font-size:14px}
+  @media (max-width:1010px){
+    .app{flex-direction:column;align-items:center}
+    .panel{width:100%;max-width:660px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="board-wrap" id="boardWrap">
+    <canvas id="board"></canvas>
+    <div class="banner" id="banner">
+      <div class="banner-card">
+        <div class="banner-title" id="bannerTitle">—</div>
+        <div class="banner-sub" id="bannerSub"></div>
+        <button id="bannerBtn" style="width:100%;padding:9px">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="card">
+      <h1>中西<span>对弈</span></h1>
+      <p class="sub">一边国际象棋 · 一边中国象棋 · 同一战场</p>
+    </div>
+
+    <div class="card">
+      <div class="turn">
+        <span class="dot cn" id="turnDot"></span>
+        <div>
+          <div class="turn-label">当前行棋</div>
+          <div class="turn-who" id="turnWho">中国象棋 · 红方</div>
+        </div>
+        <span class="tag hide" id="checkTag">将军！</span>
+      </div>
+      <div class="hint" id="hint">红方先行：点击自己的棋子。</div>
+    </div>
+
+    <div class="card">
+      <p class="seg-label">对局模式</p>
+      <div class="seg" id="modeSeg">
+        <button data-mode="pvp" class="on">双人对弈</button>
+        <button data-mode="ai-in">电脑执国际</button>
+        <button data-mode="ai-cn">电脑执中国</button>
+      </div>
+      <p class="seg-label" style="margin-top:11px">电脑棋力</p>
+      <div class="seg" id="lvlSeg">
+        <button data-depth="2">简单</button>
+        <button data-depth="3" class="on">普通</button>
+        <button data-depth="4">困难</button>
+      </div>
+      <p class="seg-label" style="margin-top:11px">棋盘尺寸</p>
+      <div class="seg" id="sizeSeg">
+        <button data-size="9x10" class="on">9×10</button>
+        <button data-size="9x12">9×12</button>
+        <button data-size="11x12">11×12</button>
+        <button data-size="12x12">12×12</button>
+      </div>
+      <div class="hint" id="sizeNote" style="margin-top:7px">9×10 默认；9×12 更开阔且平衡性略好；偶数宽度没有中线，九宫会偏左、右侧留空。</div>
+      <div class="row" style="margin-top:12px">
+        <button id="newBtn">新局</button>
+        <button id="undoBtn">悔棋</button>
+        <button id="soundBtn">🔊 音效</button>
+        <button id="helpBtn">规则</button>
+      </div>
+      <div class="row" style="margin-top:7px">
+        <button id="editBtn">摆棋</button>
+        <button id="exportBtn">导出 HTML</button>
+      </div>
+      <div class="hint" id="startInfo" style="margin-top:8px">当前开局：默认</div>
+    </div>
+
+    <div class="card" id="editorCard" hidden>
+      <p class="seg-label">摆棋 · 选一个子再点棋盘放置；右键删除；不选子时点两下可以搬子</p>
+      <div class="palette" id="palette">
+        <button data-p="K">帅</button>
+        <button data-p="A">仕</button>
+        <button data-p="E">相</button>
+        <button data-p="H">马</button>
+        <button data-p="R">车</button>
+        <button data-p="C">炮</button>
+        <button data-p="P">兵</button>
+        <button data-p="k" class="intl" title="王">王</button>
+        <button data-p="q" class="intl" title="后">后</button>
+        <button data-p="r" class="intl" title="车">车</button>
+        <button data-p="b" class="intl" title="象">象</button>
+        <button data-p="n" class="intl" title="马">马</button>
+        <button data-p="p" class="intl" title="兵">兵</button>
+        <button data-p="X" class="eraser" title="橡皮">✕</button>
+      </div>
+      <div class="hint" id="editHint" style="margin-top:9px">…</div>
+      <div class="row" style="margin-top:9px">
+        <button id="saveStartBtn">保存为初始棋盘</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="defaultStartBtn">恢复默认开局</button>
+        <button id="cancelEditBtn">取消</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="seg-label">已吃子力</p>
+      <div class="caps">
+        <div class="cap-side"><b class="red">中国吃掉</b><div class="cap-list" id="capByCN">—</div></div>
+        <div class="cap-side"><b class="blue">国际吃掉</b><div class="cap-list" id="capByIN">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="seg-label">棋谱</p>
+      <div class="log">
+        <table>
+          <thead><tr><th>#</th><th>中国象棋</th><th>国际象棋</th></tr></thead>
+          <tbody id="logBody"><tr><td class="n">1</td><td colspan="2" style="color:#5d6a79">等待红方落子…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h2>规则</h2>
+    <p style="color:#93a1b1;font-size:12.5px">同一张 9×10 的交叉点棋盘上两军对垒：下方是<b>中国象棋·红方</b>（先手），上方是<b>国际象棋·钢蓝方</b>。棋盘用国际象棋的深浅格美术风格，中间那条河叫<b>乌拉尔河</b>。各子只遵守自己棋种的走法，<b>吃掉对方的「帅 / 王」即获胜</b>。</p>
+
+    <h3>中国象棋方（红）</h3>
+    <ul>
+      <li><span class="k">帅</span> 九宫内一步直行；<b>另有「飞将」</b>：与自己同一条直线上（中间无子）若是对方的王，可以直接飞过去吃掉。<b>这个特权只有红方有</b>。</li>
+      <li><span class="k">仕</span> 九宫内一步斜行。</li>
+      <li><span class="k">相</span> 走「田」字，塞象眼不可行，且不能过河。</li>
+      <li><span class="k">马</span> 走「日」字，蹩马腿不可行。</li>
+      <li><span class="k">车</span> 直线任意格；<span class="k">炮</span> 走法同车，但吃子必须隔一个棋子（炮架），且只能吃炮架后的第一个子。</li>
+      <li><span class="k">兵</span> 只进不退；过河后可以横走，走法与吃法相同。本局两个边兵摆在 b4 / h4。</li>
+    </ul>
+
+    <h3>国际象棋方（钢蓝）</h3>
+    <ul>
+      <li><span class="kb">♚</span> 王：周围一格。 <span class="kb">♛</span> 后：直线斜线任意格。</li>
+      <li><span class="kb">♜</span> 车：直线任意格。 <span class="kb">♝</span> 象：斜线任意格。</li>
+      <li><span class="kb">♞</span> 马：走「日」字，<b>不蹩腿</b>。</li>
+      <li><span class="kb">♟</span> 兵：向前一格，首步可两格；<b>只能斜吃</b>；走到底线升变为后。</li>
+      <li><b>斜着走的子不能跨河</b>：后、象（以及王的那两步斜走）只能沿斜线走到<b>岸边</b>停住，
+        想过去必须单独走<b>一格直走</b>（比如象 e6→e5），过了河才能在对面继续斜着打。
+        车、后、兵的直线走法不受影响；中国象棋方没有斜着滑行的子，不受这条约束。</li>
+      <li>本局不含王车易位与吃过路兵。</li>
+      <li><b>本局布局</b>：后排七子缩进一排（b10..h10 = 车 马 象 · 后 · 象 马 车），王站在王后正前方的 e9。<b>兵墙压在王与双象前面</b>（c9 / d9 / f9 / g9），所以「后」开局一步都走不了——和真棋一样被自己的兵锁住；<b>双车所在这两条线（b9 / h9）特意留空，车不挡</b>；e8 是王前哨兵。</li>
+    </ul>
+
+    <h3>胜负与简化约定</h3>
+    <ul>
+      <li>为便于两种规则共存，<b>不作「不可送将 / 不可自我将军」的限制</b>：把帅或王走进对方火力网是允许的，只是会被吃掉。界面会在被攻击时亮出「将军！」提醒。</li>
+      <li>同样地，被将军时并没有强制解将的义务——但主帅被吃就结束了。</li>
+      <li>连续 50 回合（100 步）无吃子判和。</li>
+      <li>棋盘用国际象棋的深浅格配色；中间那条「乌拉尔河」只是分界线，不限制任何走法。九宫对角线只约束红方的帅与仕。</li>
+      <li><b>注意</b>：黑王站在 e9，e 线是它的软肋——红方开局「炮 b3→e3」就能隔着自己的 e4 兵直接瞄准它，黑方必须应对；更要注意<b>飞将</b>：e 线上只要红兵让开、e8 哨兵又没了，红帅就能一口气飞上去吃王。反过来，红帅在九宫里只有 3 个相邻格，两侧被自己的仕堵着，<b>只要黑方有子走到 d2 或 f2 就是闷宫杀</b>。</li>
+      <li><b>自定开局</b>：点「摆棋」可以把棋子随便挪、加、删，摆好后「保存为初始棋盘」，之后每局都从这里开始；「导出 HTML」会把这个开局写进一个独立文件，双击就能玩这一版。</li>
+    </ul>
+    <button class="close" id="modalClose">开始下棋</button>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+(function(){
+'use strict';
+const E = window.Engine;
+const CN = E.CN, IN = E.IN;
+
+// 可选：用 ?size=12x12 指定棋盘尺寸（默认 9x10）
+(function () {
+  const m = /[?&]size=(\d+)x(\d+)/.exec(location.search);
+  if (m) E.configure(+m[1], +m[2]);
+})();
+
+/* ---------------- 自定义开局（摆棋保存 / 导出的文件里会带） ---------------- */
+const LS_KEY = 'chessCustomStart';
+let customStart = (function () {
+  try {
+    if (typeof window.__CUSTOM_START__ === 'string' && window.__CUSTOM_START__.length) return window.__CUSTOM_START__;
+    return localStorage.getItem(LS_KEY);
+  } catch (e) {
+    return typeof window.__CUSTOM_START__ === 'string' ? window.__CUSTOM_START__ : null;
+  }
+})();
+
+function startBoard() {
+  if (customStart) {
+    const b = E.boardFromString(customStart);
+    if (b) return b;
+  }
+  return E.initialBoard();
+}
+
+/* ---------------- 状态 ---------------- */
+const G = {
+  board: E.initialBoard(), turn: CN, mode:'pvp', depth:3, thinking:false,
+  over:false, winner:null, selected:null, legal:[], lastMove:null,
+  history:[], log:[], capBy:[ [], [] ], noCap:0, anim:null,
+  checkSide:-1, checkSq:-1, gen:0,
+  edit:false, palette:null
+};
+let soundOn = true;
+
+const cv = document.getElementById('board'), wrap = document.getElementById('boardWrap');
+let ctx, bgc, bg = document.createElement('canvas');
+let CELL = 56, PAD = 40, MARGIN = 26, W = 0, H = 0, DPR = 1, R = 24;
+
+/* ---------------- 尺寸与静态棋盘 ---------------- */
+// 木板内缩 MARGIN，留出外侧的坐标刻度带（棋子不会盖住刻度）
+const bx = x => MARGIN + PAD + x * CELL;
+const by = y => MARGIN + PAD + y * CELL;
+
+function setupCtx(c, w, h, dpr){
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return g;
+}
+
+function resize(){
+  const stacked = window.innerWidth < 1010;
+  const availW = stacked ? window.innerWidth - 44 : Math.min(window.innerWidth - 400 - 62, 664);
+  const availH = window.innerHeight - (stacked ? 300 : 76);
+  // 每格占宽 1，四周另有 PAD(0.66)+MARGIN(0.46) 的边带
+  const cols = E.N - 1, rows = E.M - 1;
+  const spanX = cols + 2 * 1.12, spanY = rows + 2 * 1.12;
+  let cell = Math.min(availW / spanX, Math.max(availH, 430) / spanY);
+  cell = Math.max(22, Math.min(64, cell));
+  CELL = cell;
+  PAD = Math.round(cell * 0.66);
+  MARGIN = Math.max(15, Math.round(cell * 0.46));
+  R = cell * 0.42;
+  W = Math.round(cols * CELL + 2 * PAD + 2 * MARGIN);
+  H = Math.round(rows * CELL + 2 * PAD + 2 * MARGIN);
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  ctx = setupCtx(cv, W, H, DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  bgc = setupCtx(bg, W, H, DPR);
+  drawBoardArt(bgc);
+}
+
+function drawBoardArt(g){
+  const M = MARGIN;
+  const x0 = bx(0), x1 = bx(E.N - 1), y0 = by(0), y1 = by(E.M - 1);
+
+  // 外侧深色衬边（坐标刻度带）
+  g.fillStyle = '#0e1218'; g.fillRect(0, 0, W, H);
+
+  // 棋盘外框：国际象棋常见的深胡桃木框
+  const frame = g.createLinearGradient(0, M, 0, H - M);
+  frame.addColorStop(0, '#4a3527'); frame.addColorStop(.5, '#3d2c20'); frame.addColorStop(1, '#2e2118');
+  if (g.roundRect) { g.beginPath(); g.roundRect(M, M, W - 2 * M, H - 2 * M, Math.min(12, M * 0.62)); g.fillStyle = frame; g.fill(); }
+  else { g.fillStyle = frame; g.fillRect(M, M, W - 2 * M, H - 2 * M); }
+
+  // 深浅格（右下角为浅色，符合国际象棋惯例）
+  const LIGHT = '#f0d9b5', DARK = '#b58863';
+  for (let cy = 0; cy < E.M - 1; cy++) {
+    for (let cx = 0; cx < E.N - 1; cx++) {
+      g.fillStyle = ((cx + cy) % 2 === 1) ? LIGHT : DARK;
+      g.fillRect(x0 + cx * CELL, y0 + cy * CELL, CELL + 0.6, CELL + 0.6);
+    }
+  }
+
+  // 乌拉尔河：中间那一行格
+  const ry0 = by(E.RIVER - 1), ry1 = by(E.RIVER);
+  const river = g.createLinearGradient(0, ry0, 0, ry1);
+  river.addColorStop(0, 'rgba(104,158,196,.72)');
+  river.addColorStop(.45, 'rgba(66,120,162,.66)');
+  river.addColorStop(1, 'rgba(42,86,124,.70)');
+  g.fillStyle = river; g.fillRect(x0, ry0, x1 - x0, ry1 - ry0);
+  g.fillStyle = 'rgba(255,255,255,.20)';                      // 水面高光
+  g.fillRect(x0, ry0 + 1, x1 - x0, Math.max(1.5, CELL * 0.05));
+
+  // 交叉点网格（棋子落在交点，格线与之重合）
+  g.strokeStyle = 'rgba(58,36,14,.40)'; g.lineWidth = Math.max(1, CELL * 0.016); g.lineCap = 'butt';
+  for (let y = 0; y < E.M; y++) { g.beginPath(); g.moveTo(x0, by(y)); g.lineTo(x1, by(y)); g.stroke(); }
+  for (let x = 0; x < E.N; x++) { g.beginPath(); g.moveTo(bx(x), y0); g.lineTo(bx(x), y1); g.stroke(); }
+
+  // 九宫（红方，功能所需）
+  g.strokeStyle = 'rgba(58,36,14,.5)'; g.lineWidth = Math.max(1.2, CELL * 0.02);
+  const kx = E.CF, ky = E.M - 1;
+  g.beginPath(); g.moveTo(bx(kx - 1), by(ky - 2)); g.lineTo(bx(kx + 1), by(ky));
+  g.moveTo(bx(kx + 1), by(ky - 2)); g.lineTo(bx(kx - 1), by(ky)); g.stroke();
+
+  // 金色细边
+  g.strokeStyle = 'rgba(217,180,91,.42)'; g.lineWidth = 2;
+  g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+
+  // 「乌拉尔河」
+  const fs = Math.max(12, CELL * 0.5);
+  const label = '乌拉尔河';
+  const gap = fs * 1.18, span = gap * (label.length - 1);
+  g.font = 'bold ' + fs + 'px "KaiTi","STKaiti","Kaiti SC","Songti SC",serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(255,255,255,.92)';
+  g.shadowColor = 'rgba(12,26,40,.55)'; g.shadowBlur = 5;
+  const midX = (x0 + x1) / 2, midY = (ry0 + ry1) / 2;
+  for (let i = 0; i < label.length; i++) g.fillText(label[i], midX - span / 2 + i * gap, midY + 1);
+  g.shadowBlur = 0;
+
+  // 坐标刻度：画在棋盘外的衬边上，永远不会被棋子压住
+  const lf = Math.max(9, Math.round(CELL * 0.24));
+  g.font = lf + 'px "Segoe UI",sans-serif';
+  g.fillStyle = 'rgba(200,214,228,.62)';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let x = 0; x < E.N; x++) g.fillText(E.FILES[x], bx(x), H - MARGIN * 0.5);
+  for (let y = 0; y < E.M; y++) g.fillText(String(E.M - y), MARGIN * 0.5, by(y));
+}
+
+/* ---------------- 画子 ---------------- */
+function drawPiece(g, px, py, p, opt){
+  opt = opt || {};
+  const rad = R * (opt.scale || 1);
+  const a = opt.alpha === undefined ? 1 : opt.alpha;
+  g.save();
+  g.globalAlpha = a;
+  g.shadowColor = 'rgba(48,28,8,.42)'; g.shadowBlur = CELL * 0.16; g.shadowOffsetY = CELL * 0.055;
+  g.beginPath(); g.arc(px, py, rad, 0, Math.PI * 2);
+  g.fillStyle = p.s === CN ? '#f7ecd4' : '#31465e';
+  g.fill();
+  g.restore();
+
+  g.save(); g.globalAlpha = a;
+  if (p.s === CN) {
+    const gr = g.createRadialGradient(px - rad * .34, py - rad * .42, rad * .12, px, py, rad * 1.12);
+    gr.addColorStop(0, '#fffdf6'); gr.addColorStop(.55, '#f2e4c6'); gr.addColorStop(1, '#d9c39a');
+    g.beginPath(); g.arc(px, py, rad, 0, Math.PI * 2); g.fillStyle = gr; g.fill();
+    g.lineWidth = Math.max(1.4, CELL * 0.032); g.strokeStyle = '#a5762c'; g.stroke();
+    g.beginPath(); g.arc(px, py, rad * 0.82, 0, Math.PI * 2);
+    g.lineWidth = 1; g.strokeStyle = 'rgba(165,118,44,.55)'; g.stroke();
+    g.font = 'bold ' + (rad * 1.16) + 'px "KaiTi","STKaiti","Kaiti SC","Songti SC",serif';
+    g.fillStyle = '#b3232a'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(E.CN_NAME[p.t], px, py + rad * 0.06);
+  } else {
+    const gr = g.createRadialGradient(px - rad * .34, py - rad * .42, rad * .12, px, py, rad * 1.12);
+    gr.addColorStop(0, '#7ea6cd'); gr.addColorStop(.5, '#3d5b7d'); gr.addColorStop(1, '#1d2c40');
+    g.beginPath(); g.arc(px, py, rad, 0, Math.PI * 2); g.fillStyle = gr; g.fill();
+    g.lineWidth = Math.max(1.4, CELL * 0.03); g.strokeStyle = '#c3d3e4'; g.stroke();
+    g.beginPath(); g.arc(px, py, rad * 0.82, 0, Math.PI * 2);
+    g.lineWidth = 1; g.strokeStyle = 'rgba(195,211,228,.42)'; g.stroke();
+    g.font = (rad * 1.34) + 'px "Segoe UI Symbol","DejaVu Sans","Arial Unicode MS",serif';
+    g.fillStyle = '#eef5fd'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 3;
+    g.fillText(E.IN_GLYPH[p.t], px, py + rad * 0.04);
+  }
+  g.restore();
+}
+
+function bracket(g, x, y, color, len, w){
+  const px = bx(x), py = by(y), l = len, o = R * 1.13;
+  g.strokeStyle = color; g.lineWidth = w; g.lineCap = 'round';
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(px + sx * o, py + sy * o - sy * l);
+    g.lineTo(px + sx * o, py + sy * o);
+    g.lineTo(px + sx * o - sx * l, py + sy * o);
+    g.stroke();
+  }
+}
+
+/* ---------------- 主渲染 ---------------- */
+function drawScene(ts){
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(bg, 0, 0, W, H);
+
+  const now = ts || performance.now();
+
+  // 上一步
+  if (G.lastMove) {
+    const lm = G.lastMove;
+    bracket(ctx, lm.fx, lm.fy, 'rgba(120,84,26,.55)', CELL * 0.16, Math.max(1.6, CELL * 0.036));
+    bracket(ctx, lm.tx, lm.ty, 'rgba(217,180,91,.95)', CELL * 0.16, Math.max(1.8, CELL * 0.042));
+  }
+
+  // 可走点
+  if (G.selected && !G.over && !G.thinking) {
+    const pulse = 0.72 + 0.28 * Math.sin(now / 260);
+    for (const m of G.legal) {
+      const px = bx(m.tx), py = by(m.ty);
+      const target = G.board[E.idx(m.tx, m.ty)];
+      if (target) {
+        ctx.beginPath(); ctx.arc(px, py, R * 1.14, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(206,58,48,' + (0.85 * pulse) + ')';
+        ctx.lineWidth = Math.max(2, CELL * 0.055); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(px, py, R * 0.24, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(28,72,44,' + (0.34 * pulse) + ')'; ctx.fill();
+      }
+    }
+  }
+
+  // 被将军的王/帅光晕
+  if (!G.over && G.checkSq >= 0) {
+    const kp = G.checkSq;
+    if (kp >= 0) {
+      const px = bx(kp % E.N), py = by((kp / E.N) | 0);
+      const pulse = 0.5 + 0.5 * Math.sin(now / 190);
+      ctx.beginPath(); ctx.arc(px, py, R * (1.2 + 0.11 * pulse), 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(226,54,44,' + (0.45 + 0.45 * pulse) + ')';
+      ctx.lineWidth = Math.max(2.4, CELL * 0.07); ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, R * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(226,54,44,' + (0.10 + 0.10 * pulse) + ')'; ctx.fill();
+    }
+  }
+
+  // 棋子
+  const hidden = G.anim ? E.idx(G.anim.tx, G.anim.ty) : -1;
+  for (let i = 0; i < G.board.length; i++) {
+    const p = G.board[i];
+    if (!p || i === hidden) continue;
+    const x = i % E.N, y = (i / E.N) | 0;
+    drawPiece(ctx, bx(x), by(y), p, {});
+  }
+
+  // 选中框
+  if (G.selected) {
+    const px = bx(G.selected.x), py = by(G.selected.y);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(px, py, R * 1.16, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(240,206,120,.95)'; ctx.lineWidth = Math.max(2.2, CELL * 0.05); ctx.stroke();
+    ctx.setLineDash([CELL * 0.14, CELL * 0.1]);
+    ctx.lineDashOffset = -(now / 45) % 1000;
+    ctx.beginPath(); ctx.arc(px, py, R * 1.36, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(240,206,120,.5)'; ctx.lineWidth = Math.max(1.4, CELL * 0.03); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 走子动画
+  if (G.anim) {
+    const t = Math.min(1, (now - G.anim.t0) / G.anim.dur);
+    const e = 1 - Math.pow(1 - t, 3);
+    const from = G.anim;
+    const px = bx(from.fx) + (bx(from.tx) - bx(from.fx)) * e;
+    const py = by(from.fy) + (by(from.ty) - by(from.fy)) * e;
+    if (from.cap) {
+      drawPiece(ctx, bx(from.tx), by(from.ty), from.cap, { alpha: Math.max(0, 1 - t * 1.6), scale: 1 - 0.35 * t });
+    }
+    ctx.save(); ctx.globalAlpha = .3;
+    ctx.beginPath(); ctx.arc(bx(from.fx), by(from.fy), R * .8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(60,40,10,.4)'; ctx.fill(); ctx.restore();
+    drawPiece(ctx, px, py, from.piece, { scale: 1 + 0.06 * Math.sin(Math.PI * t) });
+    if (t >= 1) G.anim = null;
+  }
+
+  if (G.over) { ctx.fillStyle = 'rgba(12,15,20,.35)'; ctx.fillRect(0, 0, W, H); }
+}
+
+function loop(ts){ drawScene(ts); requestAnimationFrame(loop); }
+
+/* ---------------- 声音 ---------------- */
+let actx = null;
+function ac(){ if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (C) actx = new C(); } return actx; }
+function tone(f1, f2, dur, type, gain, delay){
+  const a = ac(); if (!a) return;
+  const t0 = a.currentTime + (delay || 0);
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f1, t0);
+  if (f2 && f2 !== f1) o.frequency.exponentialRampToValueAtTime(Math.max(40, f2), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain || 0.06, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.04);
+}
+function sfx(kind){
+  if (!soundOn) return;
+  try {
+    if (kind === 'move') tone(540, 400, 0.09, 'sine', 0.05);
+    else if (kind === 'capture') { tone(320, 90, 0.20, 'triangle', 0.10); tone(190, 70, 0.24, 'sawtooth', 0.045, 0.02); }
+    else if (kind === 'check') { tone(880, 880, 0.08, 'square', 0.045); tone(1180, 1180, 0.11, 'square', 0.045, 0.1); }
+    else if (kind === 'win') [523, 659, 784, 1046].forEach((f, i) => tone(f, f, 0.16, 'sine', 0.07, i * 0.11));
+    else if (kind === 'undo') tone(360, 250, 0.11, 'sine', 0.05);
+  } catch (e) {}
+}
+
+/* ---------------- 对局流程 ---------------- */
+const $ = id => document.getElementById(id);
+const humanSide = () => G.mode === 'ai-in' ? CN : (G.mode === 'ai-cn' ? IN : null);
+
+function refreshCheck(){
+  G.checkSide = -1; G.checkSq = -1;
+  if (G.over) return;
+  if (E.isAttacked(G.board, G.turn)) { G.checkSide = G.turn; G.checkSq = E.kingSquare(G.board, G.turn); }
+}
+
+function snapshot(){
+  return {
+    board: G.board.slice(), turn: G.turn, logLen: G.log.length,
+    capCN: G.capBy[CN].slice(), capIN: G.capBy[IN].slice(),
+    lastMove: G.lastMove, noCap: G.noCap, over: G.over, winner: G.winner
+  };
+}
+
+function newGame(keepMode){
+  G.gen++;
+  G.edit = false; G.palette = null;
+  const ec = $('editorCard'); if (ec) ec.hidden = true;
+  const eb = $('editBtn'); if (eb) eb.textContent = '摆棋';
+  const pal = $('palette'); if (pal) pal.querySelectorAll('button.on').forEach(b => b.classList.remove('on'));
+  G.board = startBoard(); G.turn = CN; G.over = false; G.winner = null;
+  G.selected = null; G.legal = []; G.lastMove = null; G.history = []; G.log = [];
+  G.capBy = [[], []]; G.noCap = 0; G.anim = null; G.thinking = false;
+  $('banner').classList.remove('show');
+  updateUI(); maybeAI();
+}
+
+/* ---------------- 摆棋（自定义初始局面） ---------------- */
+function editStats() {
+  let cn = 0, int = 0, k = 0, kk = 0;
+  for (const p of G.board) {
+    if (!p) continue;
+    if (p.s === CN) { cn++; if (p.t === 'K') k++; }
+    else { int++; if (p.t === 'k') kk++; }
+  }
+  return { cn, int, k, kk, ok: k === 1 && kk === 1 };
+}
+
+function updateEditUI() {
+  const s = editStats();
+  const hint = $('editHint');
+  if (hint) {
+    hint.innerHTML = '红 ' + s.cn + ' 子（帅 ' + s.k + '）· 蓝 ' + s.int + ' 子（王 ' + s.kk + '）' +
+      (s.ok ? ' · <span style="color:#8fd18f">可以保存</span>'
+            : ' · <b style="color:#ff9a95">必须有且只有一个帅和一个王</b>');
+  }
+  const btn = $('saveStartBtn');
+  if (btn) { btn.disabled = !s.ok; btn.style.opacity = s.ok ? 1 : .45; }
+  updateUI();
+}
+
+function enterEdit() {
+  if (G.edit) return;
+  G.gen++;
+  G.thinking = false;
+  G.over = false; G.winner = null;
+  G.edit = true; G.palette = null;
+  G.selected = null; G.legal = []; G.lastMove = null; G.anim = null;
+  G.board = G.board.slice();
+  $('banner').classList.remove('show');
+  const ec = $('editorCard'); if (ec) ec.hidden = false;
+  const eb = $('editBtn'); if (eb) eb.textContent = '退出摆棋';
+  const pal = $('palette'); if (pal) pal.querySelectorAll('button.on').forEach(b => b.classList.remove('on'));
+  updateEditUI();
+}
+
+function exitEdit(keep) {
+  if (!G.edit) return;
+  G.edit = false; G.palette = null; G.selected = null;
+  const ec = $('editorCard'); if (ec) ec.hidden = true;
+  const eb = $('editBtn'); if (eb) eb.textContent = '摆棋';
+  const pal = $('palette'); if (pal) pal.querySelectorAll('button.on').forEach(b => b.classList.remove('on'));
+  if (keep) updateUI(); else newGame();
+}
+
+function editClick(x, y) {
+  const i = E.idx(x, y);
+  if (G.palette === 'X') { G.board[i] = null; updateEditUI(); return; }
+  if (G.palette) {
+    const isCn = G.palette >= 'A' && G.palette <= 'Z';
+    G.board[i] = { s: isCn ? CN : IN, t: G.palette };
+    updateEditUI(); return;
+  }
+  // 不选子：点两下搬子
+  if (G.selected) {
+    const from = E.idx(G.selected.x, G.selected.y);
+    if (from !== i) { G.board[i] = G.board[from]; G.board[from] = null; }
+    G.selected = null;
+  } else if (G.board[i]) {
+    G.selected = { x, y };
+  }
+  updateEditUI();
+}
+
+function saveStart() {
+  if ($('saveStartBtn').disabled) return;
+  customStart = E.boardToString(G.board);
+  let stored = true;
+  try { localStorage.setItem(LS_KEY, customStart); } catch (e) { stored = false; }
+  G.edit = false; G.palette = null;
+  const ec = $('editorCard'); if (ec) ec.hidden = true;
+  const eb = $('editBtn'); if (eb) eb.textContent = '摆棋';
+  newGame();
+  if (!stored) setHint('已生效，但这个浏览器禁止本地存储——想带走这局，请点「导出 HTML」。');
+}
+
+function restoreDefaultStart() {
+  customStart = null;
+  try { localStorage.removeItem(LS_KEY); } catch (e) {}
+  exitEdit(false);
+}
+
+/* 导出：把当前开局写进 HTML，下载一份独立文件 */
+function exportHtml() {
+  const start = E.boardToString(G.edit ? G.board : startBoard());
+  try {
+    const doc = document.documentElement.cloneNode(true);
+    doc.querySelectorAll('.banner.show, .modal.show').forEach(el => el.classList.remove('show'));
+    const ec = doc.querySelector('#editorCard'); if (ec) ec.hidden = true;
+    const logBody = doc.querySelector('#logBody');
+    if (logBody) logBody.innerHTML = '<tr><td class="n">1</td><td colspan="2" style="color:#5d6a79">等待红方落子…</td></tr>';
+    const hint = doc.querySelector('#hint'); if (hint) hint.textContent = '红方先行：点击自己的棋子。';
+    const info = doc.querySelector('#startInfo'); if (info) info.textContent = '当前开局：自定义（文件内已写入）';
+    const s = document.createElement('script');
+    s.textContent = 'window.__CUSTOM_START__=' + JSON.stringify(start) + ';';
+    doc.querySelector('head').appendChild(s);
+    const html = '<!doctype html>\n' + doc.outerHTML;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'chess-vs-xiangqi-custom.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    setHint('已导出 chess-vs-xiangqi-custom.html（开局已写进文件）');
+  } catch (e) {
+    setHint('导出失败：' + e.message);
+  }
+}
+
+function selectAt(x, y){
+  const p = G.board[E.idx(x, y)];
+  if (!p || p.s !== G.turn) { G.selected = null; G.legal = []; updateUI(); return; }
+  G.selected = { x, y };
+  G.legal = E.movesFrom(G.board, x, y);
+  updateUI();
+}
+
+function tryMove(mv, byAI){
+  const mover = G.turn;
+  const piece = G.board[E.idx(mv.fx, mv.fy)];
+  if (!piece) return;
+  const text = E.moveText(G.board, mv);
+  G.history.push(snapshot());
+  const cap = E.applyMove(G.board, mv);
+  G.log.push({ side: mover, text });
+  if (cap) {
+    G.capBy[mover].push(cap);
+    G.noCap = 0;
+  } else G.noCap++;
+
+  G.lastMove = mv;
+  G.selected = null; G.legal = [];
+  const animDur = 240;
+  G.anim = { fx: mv.fx, fy: mv.fy, tx: mv.tx, ty: mv.ty, piece, cap, t0: performance.now(), dur: animDur };
+  // 动画的收尾不能只依赖 requestAnimationFrame：标签页被节流时 rAF 会停摆，
+  // 那样 G.anim 永远清不掉，棋盘就点不动了。这里用定时器兜底。
+  const animRef = G.anim;
+  setTimeout(() => { if (G.anim === animRef) G.anim = null; }, animDur + 50);
+
+  const kingGone = cap && E.isKing(cap);
+  if (kingGone) {
+    G.over = true; G.winner = mover;
+    sfx('win');
+    showBanner((mover === CN ? '中国象棋' : '国际象棋') + ' 胜',
+      '吃掉对方主帅，共 ' + G.log.length + ' 手');
+  } else if (G.noCap >= 100) {
+    G.over = true; G.winner = null;
+    showBanner('和局', '连续 50 回合无吃子');
+  } else {
+    G.turn = E.other(mover);
+    sfx(cap ? 'capture' : 'move');
+    if (E.isAttacked(G.board, G.turn)) setTimeout(() => sfx('check'), 160);
+  }
+  updateUI();
+  if (!G.over) maybeAI(byAI);
+}
+
+function maybeAI(justMovedByAI){
+  if (G.over || G.mode === 'pvp') return;
+  if (G.turn === humanSide()) return;         // 轮到人，交给玩家
+  const gen = G.gen;
+  G.thinking = true; updateUI();
+  setTimeout(() => {
+    if (gen !== G.gen) return;                // 已换局/换模式，放弃这次思考
+    if (G.over || G.turn === humanSide()) { G.thinking = false; updateUI(); return; }
+    const mv = E.bestMove(G.board, G.turn, G.depth);
+    G.thinking = false;
+    if (mv) tryMove(mv, true); else { G.over = true; updateUI(); }
+  }, justMovedByAI ? 120 : 420);
+}
+
+function undo(){
+  if (!G.history.length || G.thinking) return;
+  const steps = (G.mode === 'pvp') ? 1 : 2;
+  for (let i = 0; i < steps && G.history.length; i++) {
+    const s = G.history.pop();
+    G.board = s.board; G.turn = s.turn;
+    G.log.length = s.logLen;
+    G.capBy[CN] = s.capCN; G.capBy[IN] = s.capIN;
+    G.lastMove = s.lastMove; G.noCap = s.noCap;
+    G.over = s.over; G.winner = s.winner;
+    if (G.mode !== 'pvp' && G.turn === humanSide()) break;
+  }
+  G.selected = null; G.legal = []; G.anim = null;
+  $('banner').classList.remove('show');
+  sfx('undo');
+  updateUI();
+}
+
+function showBanner(title, sub){
+  $('bannerTitle').textContent = title;
+  $('bannerSub').textContent = sub;
+  $('banner').classList.add('show');
+}
+
+function setHint(t){ $('hint').textContent = t; }
+
+function updateUI(){
+  refreshCheck();
+  const dot = $('turnDot');
+  dot.className = 'dot ' + (G.turn === CN ? 'cn' : 'intl');
+  $('turnWho').textContent = E.SIDE_NAME[G.turn];
+  const inCheck = !G.over && G.checkSq >= 0;
+  $('checkTag').classList.toggle('hide', !inCheck);
+
+  // 提示每次都由当前状态重新推导，避免残留过时的文案
+  if (G.edit) {
+    setHint(G.palette === 'X' ? '橡皮：点棋盘删除棋子。' : G.palette
+      ? '放置 ' + E.pieceName({ s: (G.palette >= 'A' && G.palette <= 'Z') ? CN : IN, t: G.palette }) + '：点棋盘落子。'
+      : '摆棋模式：不选子时点两下可以搬子，右键删除。');
+  } else if (G.over) {
+    setHint(G.winner === null ? '和局。' : (G.winner === CN ? '中国象棋' : '国际象棋') + ' 获胜。');
+  } else if (G.thinking) {
+    setHint('电脑思考中…');
+  } else if (inCheck) {
+    setHint('你的主帅正被攻击——可以解将，也可以不理（主帅被吃即负）。');
+  } else if (G.selected) {
+    const p = G.board[E.idx(G.selected.x, G.selected.y)];
+    setHint('已选 ' + E.pieceName(p) + ' ' + E.sqName(G.selected.x, G.selected.y) + '，共 ' + G.legal.length + ' 种走法。');
+  } else if (G.mode !== 'pvp' && G.turn !== humanSide()) {
+    setHint('轮到电脑行棋…');
+  } else {
+    setHint('点击你的棋子，再点高亮落点。');
+  }
+
+  const si = $('startInfo');
+  if (si) {
+    si.textContent = G.edit ? '摆棋中：摆好后点「保存为初始棋盘」'
+      : (customStart ? '当前开局：自定义（可「恢复默认开局」还原）' : '当前开局：默认');
+    si.style.color = (G.edit || customStart) ? 'rgba(240,217,160,.9)' : '';
+  }
+
+  const capTxt = (arr, cls) => arr.length
+    ? arr.map(p => '<span class="' + cls + '">' + (p.s === CN ? E.CN_NAME[p.t] : E.IN_GLYPH[p.t]) + '</span>').join(' ')
+    : '—';
+  $('capByCN').innerHTML = capTxt(G.capBy[CN].filter(p => p.s === IN), 'g');
+  $('capByIN').innerHTML = capTxt(G.capBy[IN].filter(p => p.s === CN), 'c');
+
+  // 棋谱
+  const rows = [];
+  let cur = null;
+  for (const e of G.log) {
+    if (e.side === CN || !cur) { cur = { cn: '', in: '' }; rows.push(cur); }
+    if (e.side === CN) cur.cn = e.text; else cur.in = e.text;
+  }
+  const body = $('logBody');
+  body.innerHTML = rows.length
+    ? rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td class="red">' + (r.cn || '…') +
+        '</td><td class="blue">' + (r.in || '') + '</td></tr>').join('')
+    : '<tr><td class="n">1</td><td colspan="2" style="color:#5d6a79">等待红方落子…</td></tr>';
+  const lg = document.querySelector('.log');
+  if (lg) lg.scrollTop = lg.scrollHeight;
+
+  $('undoBtn').disabled = !G.history.length || G.thinking;
+}
+
+/* ---------------- 交互 ---------------- */
+function hitTest(ev) {
+  const rect = cv.getBoundingClientRect();
+  const s = W / rect.width;
+  const px = (ev.clientX - rect.left) * s, py = (ev.clientY - rect.top) * s;
+  const x = Math.round((px - PAD - MARGIN) / CELL), y = Math.round((py - PAD - MARGIN) / CELL);
+  if (x < 0 || x > E.N - 1 || y < 0 || y > E.M - 1) return null;
+  if (Math.hypot(px - bx(x), py - by(y)) > CELL * 0.52) return null;
+  return { x, y };
+}
+
+cv.addEventListener('click', ev => {
+  if (G.edit) {
+    const h = hitTest(ev);
+    if (h) editClick(h.x, h.y);
+    return;
+  }
+  if (G.over || G.thinking) return;
+  if (G.anim && performance.now() - G.anim.t0 < G.anim.dur) return;   // 走子动画期间不接受输入
+  if (G.mode !== 'pvp' && G.turn !== humanSide()) return;
+  const h = hitTest(ev);
+  if (!h) return;
+  const x = h.x, y = h.y;
+
+  if (G.selected) {
+    const mv = G.legal.find(m => m.tx === x && m.ty === y);
+    if (mv) { tryMove(mv, false); return; }
+  }
+  const p = G.board[E.idx(x, y)];
+  if (p && p.s === G.turn) selectAt(x, y);
+  else { G.selected = null; G.legal = []; updateUI(); }
+});
+
+// 摆棋时右键删除
+cv.addEventListener('contextmenu', ev => {
+  if (!G.edit) return;
+  ev.preventDefault();
+  const h = hitTest(ev);
+  if (!h) return;
+  G.board[E.idx(h.x, h.y)] = null;
+  updateEditUI();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (G.edit) { exitEdit(false); return; }
+    G.selected = null; G.legal = []; updateUI();
+  }
+  else if (e.key === 'u' || e.key === 'U') { if (!G.edit) undo(); }
+  else if (e.key === 'n' || e.key === 'N') newGame();
+});
+
+$('modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  [...e.currentTarget.children].forEach(c => c.classList.toggle('on', c === b));
+  G.mode = b.dataset.mode;
+  newGame(true);
+});
+$('lvlSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  [...e.currentTarget.children].forEach(c => c.classList.toggle('on', c === b));
+  G.depth = +b.dataset.depth;
+});
+$('sizeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const [sn, sm] = b.dataset.size.split('x').map(Number);
+  if (sn === E.N && sm === E.M) return;
+  [...e.currentTarget.children].forEach(c => c.classList.toggle('on', c === b));
+  E.configure(sn, sm);      // 换尺寸：九宫、河界、双方阵型都会按新尺寸重排
+  resize();
+  newGame();
+  $('sizeNote').textContent = (sn % 2 === 0)
+    ? (sn + '×' + sm + '：偶数宽度没有中线，九宫只能偏左，右侧留空——这正是 12 宽的问题。')
+    : (sn + '×' + sm + '：奇数宽度，九宫居中、双方阵型左右对称。');
+});
+$('newBtn').onclick = () => newGame();
+$('undoBtn').onclick = undo;
+$('editBtn').onclick = () => { if (G.edit) exitEdit(false); else enterEdit(); };
+$('exportBtn').onclick = exportHtml;
+$('saveStartBtn').onclick = saveStart;
+$('cancelEditBtn').onclick = () => exitEdit(false);
+$('defaultStartBtn').onclick = restoreDefaultStart;
+$('palette').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const was = b.classList.contains('on');
+  [...e.currentTarget.children].forEach(c => c.classList.remove('on'));
+  G.palette = was ? null : b.dataset.p;
+  if (!was) b.classList.add('on');
+  updateUI();
+});
+$('soundBtn').onclick = () => {
+  soundOn = !soundOn;
+  $('soundBtn').textContent = soundOn ? '🔊 音效' : '🔇 静音';
+  if (soundOn) sfx('move');
+};
+$('helpBtn').onclick = () => $('modal').classList.add('show');
+$('modalClose').onclick = () => $('modal').classList.remove('show');
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.remove('show'); });
+$('bannerBtn').onclick = () => newGame();
+
+window.addEventListener('resize', () => { resize(); });
+
+/* ---------------- 启动 ---------------- */
+// 尺寸选择器要与 ?size= 指定的（或默认的）尺寸保持一致
+(function initSizeSeg(){
+  const key = E.N + 'x' + E.M;
+  [...$('sizeSeg').children].forEach(c => c.classList.toggle('on', c.dataset.size === key));
+  if (E.N % 2 === 0) $('sizeNote').textContent =
+    E.N + '×' + E.M + '：偶数宽度没有中线，九宫只能偏左，右侧留空——这正是 12 宽的问题。';
+})();
+resize();
+newGame();            // 必须走 newGame：它会读自定义开局（导出的文件靠这个生效）
+requestAnimationFrame(loop);
+// 供无头截图自检使用
+window.__game = G;
+window.__api = { newGame, updateUI, undo, tryMove, selectAt, E, layout: () => ({ CELL, PAD, MARGIN, W, H, R }) };
+})();
+</script>
+</body>
+</html>

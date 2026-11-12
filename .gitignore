@@ -1,0 +1,22 @@
+# 依赖与构建产物
+node_modules/
+.cache/
+frames/
+out/
+
+# 视频素材（仓库里不放成片和音轨）
+*.mp4
+*.wav
+
+# 临时脚本 / 自测产物
+_*.html
+_*.cjs
+_*.py
+_*.txt
+_selftest-*.html
+.tmp/
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini
